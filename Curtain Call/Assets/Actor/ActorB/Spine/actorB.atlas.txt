@@ -1,0 +1,11 @@
+actorB.png
+size:280,170
+filter:Linear,Linear
+pma:true
+body
+bounds:2,2,166,207
+offsets:1,2,168,210
+rotate:90
+hand
+bounds:211,84,67,84
+offsets:1,1,69,86

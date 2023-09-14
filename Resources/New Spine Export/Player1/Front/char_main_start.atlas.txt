@@ -1,0 +1,49 @@
+char_main_start.png
+size:136,485
+filter:Linear,Linear
+pma:true
+arm_L
+bounds:2,2,45,50
+offsets:1,1,47,52
+rotate:90
+arm_R
+bounds:91,320,43,64
+offsets:1,1,45,66
+coat
+bounds:2,386,130,97
+offsets:1,1,132,99
+head
+bounds:2,140,80,87
+offsets:1,1,82,89
+rotate:90
+head _amazed
+bounds:2,304,80,87
+offsets:1,2,82,90
+rotate:90
+head _struggle
+bounds:2,222,80,87
+offsets:1,1,82,89
+rotate:90
+hip
+bounds:91,206,50,40
+offsets:1,1,52,42
+rotate:90
+tail
+bounds:2,49,89,57
+offsets:1,1,91,59
+rotate:90
+undder leg_R
+bounds:91,258,38,60
+offsets:1,1,40,62
+under leg_L
+bounds:91,149,36,55
+offsets:1,1,38,57
+upper leg_L
+bounds:91,123,28,24
+offsets:1,1,30,26
+upper leg_R
+bounds:61,115,27,23
+offsets:1,1,29,25
+upperbddy
+bounds:61,44,70,69
+offsets:1,1,72,72
