@@ -663,9 +663,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff321950348bb334e988a8f335da03ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerNumber: 1
   moveSpeed: 25
   speedLimit: 5
-  babo: 3
 --- !u!114 &552178952
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -678,7 +678,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8f2fb28afa177d4f93bb7fbefcc6752, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerNumber: 1
 --- !u!4 &552178953
 Transform:
   m_ObjectHideFlags: 0
@@ -1282,9 +1281,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff321950348bb334e988a8f335da03ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerNumber: 0
   moveSpeed: 25
   speedLimit: 5
-  babo: 3
 --- !u!50 &1817767009
 Rigidbody2D:
   serializedVersion: 4
@@ -1359,7 +1358,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8f2fb28afa177d4f93bb7fbefcc6752, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerNumber: 0
 --- !u!1 &1948619968
 GameObject:
   m_ObjectHideFlags: 0
