@@ -43,7 +43,8 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rigid;
     private SkeletonAnimation spineAnim;
-    private ePlayerStatus playerStatus = ePlayerStatus.STANDBY;
+    private ePlayerStatus prevStatus = ePlayerStatus.STANDBY;
+    private ePlayerStatus nowStatus = ePlayerStatus.STANDBY;
     private eDirection direction = eDirection.LEFT;
     private bool isRunning = false;
 
@@ -69,7 +70,7 @@ public class PlayerController : MonoBehaviour
 
         float limit = speedLimit;
 
-        if(playerStatus.Equals(ePlayerStatus.RUN))
+        if(nowStatus.Equals(ePlayerStatus.RUN))
         {
             limit *= 1.5f;
         }
@@ -84,10 +85,6 @@ public class PlayerController : MonoBehaviour
             rigid.velocity = new Vector2(limit, rigid.velocity.y);
         }
 
-        if (rigid.velocity.magnitude <= 0.0f)
-        {
-            playerStatus = ePlayerStatus.STANDBY;
-        }
     }
 
     private void Update()
@@ -96,8 +93,19 @@ public class PlayerController : MonoBehaviour
         CheckInput();
     }
 
-    private void LateUpdate()
+    private void LateUpdate() 
     {
+        // 움직이고자 하는 방향과 현재 속도의 방향이 다르면 / 움직이고자 하는 방향이 없다면
+        if (nowStatus.Equals(ePlayerStatus.RUN) && moveVec.x <= 0)
+        {
+            ChangeStatus(ePlayerStatus.STOP);
+        }
+
+        if (Mathf.Abs(rigid.velocity.x) <= 0.0f) 
+        {
+            ChangeStatus(ePlayerStatus.STANDBY);
+        }
+
         AnimateSpine();
     }
 
@@ -135,36 +143,32 @@ public class PlayerController : MonoBehaviour
     {
         // TODO : 조이스틱 입력도 받아야 하고
 
-        if (Input.GetKey(runKeyCode) && !playerStatus.Equals(ePlayerStatus.RUN))
+        if (Input.GetKey(runKeyCode) && !nowStatus.Equals(ePlayerStatus.RUN))
         {
-            playerStatus = ePlayerStatus.RUN;
+            nowStatus = ePlayerStatus.RUN;
         }
 
         if (Input.GetKey(leftKeyCode))
         {
-            if(playerStatus.Equals(ePlayerStatus.RUN) && !direction.Equals(eDirection.LEFT))
-            {
-                playerStatus = ePlayerStatus.STOP;
-                return;
-            }
-
             direction = eDirection.LEFT;
             moveVec = -(transform.right * moveSpeed);
-            transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+            spineAnim.skeleton.ScaleX = Mathf.Abs(spineAnim.skeleton.ScaleX);
+            // transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
         }
         else if (Input.GetKey(rightKeyCode))
         {
             direction = eDirection.RIGHT;
             moveVec = transform.right * moveSpeed;
-            transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
+            spineAnim.skeleton.ScaleX = -Mathf.Abs(spineAnim.skeleton.ScaleX);
+            // transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
         }
 
-        if (moveVec != Vector2.zero && !playerStatus.Equals(ePlayerStatus.RUN))
+        if (moveVec != Vector2.zero && !nowStatus.Equals(ePlayerStatus.RUN))
         {
-            playerStatus = ePlayerStatus.WALK;
+            nowStatus = ePlayerStatus.WALK;
         }
 
-        if (playerStatus.Equals(ePlayerStatus.RUN))
+        if (nowStatus.Equals(ePlayerStatus.RUN))
         {
             moveVec *= 1.5f;
         }
@@ -175,7 +179,9 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void AnimateSpine()
     {
-        switch (playerStatus)
+        Debug.Log(nowStatus);
+
+        switch (nowStatus)
         {
             case ePlayerStatus.GRAB:
                 {
@@ -215,5 +221,11 @@ public class PlayerController : MonoBehaviour
             default:
                 break;
         }
+    }
+
+    void ChangeStatus(ePlayerStatus status)
+    {
+        prevStatus = nowStatus;
+        nowStatus = status;
     }
 }

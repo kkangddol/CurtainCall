@@ -578,7 +578,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 552178953}
-  - component: {fileID: 552178952}
   - component: {fileID: 552178951}
   - component: {fileID: 552178950}
   - component: {fileID: 552178949}
@@ -666,18 +665,6 @@ MonoBehaviour:
   playerNumber: 1
   moveSpeed: 25
   speedLimit: 5
---- !u!114 &552178952
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 552178948}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e8f2fb28afa177d4f93bb7fbefcc6752, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!4 &552178953
 Transform:
   m_ObjectHideFlags: 0
@@ -1242,7 +1229,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1817767007}
-  - component: {fileID: 1817767011}
   - component: {fileID: 1817767008}
   - component: {fileID: 1817767010}
   - component: {fileID: 1817767009}
@@ -1346,18 +1332,6 @@ CapsuleCollider2D:
   m_Offset: {x: 0, y: 0.95}
   m_Size: {x: 1, y: 2}
   m_Direction: 0
---- !u!114 &1817767011
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1817767006}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e8f2fb28afa177d4f93bb7fbefcc6752, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1948619968
 GameObject:
   m_ObjectHideFlags: 0
