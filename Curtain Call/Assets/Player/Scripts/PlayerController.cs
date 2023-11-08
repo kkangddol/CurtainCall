@@ -21,7 +21,9 @@ public enum ePlayerState
     RUN,
     STANDBY,
     STOP,
-    WALK
+    WALK,
+    CLIMB,
+    TURN
 }
 
 public enum eDirection
@@ -38,31 +40,45 @@ public enum eDirection
 /// </summary>
 public class PlayerController : MonoBehaviour
 {
-    public ePlayerNumber playerNumber;
-    public float moveSpeed = 25.0f;
-    public float speedLimit = 5.0f;
-    public float runSpeedRatio = 1.5f;
+    [SerializeField]
+    private ePlayerNumber playerNumber;
+    [SerializeField]
+    private float moveSpeed = 25.0f;
+    [SerializeField]
+    private float speedLimit = 5.0f;
+    [SerializeField]
+    private float runSpeedRatio = 1.5f;
+
+    [SerializeField]
+    private SkeletonAnimation _frontSpineAnim;
+    [SerializeField]
+    private SkeletonAnimation _backSpineAnim;
 
     private Rigidbody2D _rigid;
-    private SkeletonAnimation _spineAnim;
+    private Collider2D _collider;
 
     private ePlayerState _nowState = ePlayerState.STOP;
     private eDirection _nowDirection = eDirection.LEFT;
     private KeyCode _leftKeyCode = KeyCode.None;
+    private KeyCode _upKeyCode = KeyCode.None;
     private KeyCode _rightKeyCode = KeyCode.None;
+    private KeyCode _downKeyCode = KeyCode.None;
     private KeyCode _runKeyCode = KeyCode.None;
     private Vector2 _moveVec = Vector2.zero;
 
     private Dictionary<KeyCode, bool> _inputMap = new Dictionary<KeyCode, bool>();
+    private bool _isClimbable = false;
 
     private void Start()
     {
         _rigid = GetComponent<Rigidbody2D>();
-        _spineAnim = GetComponentInChildren<SkeletonAnimation>();
+        _collider = GetComponent<CapsuleCollider2D>();
         CheckPlayerNum();
 
         _inputMap.Add(_leftKeyCode, false);
+        _inputMap.Add(_upKeyCode, false);
         _inputMap.Add(_rightKeyCode, false);
+        _inputMap.Add(_downKeyCode, false);
         _inputMap.Add(_runKeyCode, false);
     }
 
@@ -92,6 +108,15 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void OnTriggerStay2D(Collider2D collision)
+    {
+        _isClimbable = false;
+        if (collision.CompareTag("Ladder"))
+        {
+            _isClimbable = true;
+        }
+    }
+
     private void Update()
     {
         Flush();
@@ -101,7 +126,16 @@ public class PlayerController : MonoBehaviour
 
     private void LateUpdate()
     {
-        CheckIdle();
+        if(CheckIdle())
+        {
+            ChangeState(ePlayerState.STANDBY);
+        }
+
+        if(CheckAerial())
+        {
+            ChangeState(ePlayerState.JUMP);
+        }
+
         AnimateSpine();
     }
 
@@ -115,14 +149,18 @@ public class PlayerController : MonoBehaviour
             case ePlayerNumber.PLAYER1:
                 {
                     _leftKeyCode = KeyCode.LeftArrow;
+                    _upKeyCode = KeyCode.UpArrow;
                     _rightKeyCode = KeyCode.RightArrow;
+                    _downKeyCode = KeyCode.DownArrow;
                     _runKeyCode = KeyCode.RightShift;
                 }
                 break;
             case ePlayerNumber.PLAYER2:
                 {
                     _leftKeyCode = KeyCode.A;
+                    _upKeyCode = KeyCode.W;
                     _rightKeyCode = KeyCode.D;
+                    _downKeyCode = KeyCode.S;
                     _runKeyCode = KeyCode.LeftShift;
                 }
                 break;
@@ -159,10 +197,35 @@ public class PlayerController : MonoBehaviour
         {
             _inputMap[_runKeyCode] = true;
         }
+
+        if (Input.GetKey(_upKeyCode))
+        {
+            _inputMap[_upKeyCode] = true;
+        }
+        else if (Input.GetKey(_downKeyCode))
+        {
+            _inputMap[_downKeyCode] = true;
+        }
     }
 
     void SetAction()
     {
+        if (_isClimbable)
+        {
+            if (_inputMap[_downKeyCode])
+            {
+                _moveVec = -(transform.up * moveSpeed);
+                ChangeState(ePlayerState.CLIMB);
+                return;
+            }
+            else if (_inputMap[_upKeyCode])
+            {
+                _moveVec = (transform.up * moveSpeed);
+                ChangeState(ePlayerState.CLIMB);
+                return;
+            }
+        }
+
         if (CanTranstition(ePlayerState.STOP)
             && ((!_inputMap[_leftKeyCode] && !_inputMap[_rightKeyCode])
                 || (_nowDirection == eDirection.RIGHT && _inputMap[_leftKeyCode])
@@ -179,14 +242,14 @@ public class PlayerController : MonoBehaviour
             {
                 ChangeDirection(eDirection.LEFT);
                 _moveVec = -(transform.right * moveSpeed) * runSpeedRatio;
+                ChangeState(ePlayerState.RUN);
             }
             else if (_inputMap[_rightKeyCode])
             {
                 ChangeDirection(eDirection.RIGHT);
                 _moveVec = transform.right * moveSpeed * runSpeedRatio;
+                ChangeState(ePlayerState.RUN);
             }
-
-            ChangeState(ePlayerState.RUN);
         }
         else if(CanTranstition(ePlayerState.WALK))
         {
@@ -194,20 +257,15 @@ public class PlayerController : MonoBehaviour
             {
                 ChangeDirection(eDirection.LEFT);
                 _moveVec = -(transform.right * moveSpeed);
+                ChangeState(ePlayerState.WALK);
             }
             else if (_inputMap[_rightKeyCode])
             {
                 ChangeDirection(eDirection.RIGHT);
                 _moveVec = transform.right * moveSpeed;
+                ChangeState(ePlayerState.WALK);
             }
-
-            ChangeState(ePlayerState.WALK);
         }
-    }
-
-    void DoAction()
-    {
-
     }
 
     bool CanTranstition(ePlayerState state)
@@ -227,11 +285,16 @@ public class PlayerController : MonoBehaviour
                 {
                     switch (state)
                     {
+                        case ePlayerState.JUMP:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STANDBY:
+                        case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
+                            return true;
                         default:
-                            break;
+                            return false;
                     }
                 }
-                break;
             case ePlayerState.PUSH:
                 {
                     switch (state)
@@ -251,6 +314,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
                             return true;
                         default:
                             return false;
@@ -266,6 +330,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
                             return true;
                         default:
                             return false;
@@ -282,6 +347,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.STANDBY:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
                             return true;
                         default:
                             return false;
@@ -297,11 +363,35 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
                             return true;
                         default:
                             return false;
                     }
                 }
+            case ePlayerState.CLIMB:
+                {
+                    switch (state)
+                    {
+                        case ePlayerState.JUMP:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STANDBY:
+                        case ePlayerState.WALK:
+                        case ePlayerState.CLIMB:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            case ePlayerState.TURN:
+                {
+                    switch (state)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                break;
             default:
                 return false;
         }
@@ -321,44 +411,75 @@ public class PlayerController : MonoBehaviour
         {
             case ePlayerState.GRAB:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "grab";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = true;
+                    _frontSpineAnim.AnimationName = "grab";
                 }
                 break;
             case ePlayerState.JUMP:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "jump";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = false;
+                    _frontSpineAnim.AnimationName = "jump";
                 }
                 break;
             case ePlayerState.PUSH:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "push";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = true;
+                    _frontSpineAnim.AnimationName = "push";
                 }
                 break;
             case ePlayerState.RUN:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "run";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = true;
+                    _frontSpineAnim.AnimationName = "run";
                 }
                 break;
             case ePlayerState.STANDBY:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "standby";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = true;
+                    _frontSpineAnim.AnimationName = "standby";
                 }
                 break;
             case ePlayerState.STOP:
                 {
-                    _spineAnim.loop = false;
-                    _spineAnim.AnimationName = "stop";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = false;
+                    _frontSpineAnim.AnimationName = "stop";
                 }
                 break;
             case ePlayerState.WALK:
                 {
-                    _spineAnim.loop = true;
-                    _spineAnim.AnimationName = "walk";
+                    _backSpineAnim.gameObject.SetActive(false);
+                    _frontSpineAnim.gameObject.SetActive(true);
+                    _frontSpineAnim.loop = true;
+                    _frontSpineAnim.AnimationName = "walk";
+                }
+                break;
+
+            case ePlayerState.CLIMB:
+                {
+                    _frontSpineAnim.gameObject.SetActive(false);
+                    _backSpineAnim.gameObject.SetActive(true);
+                    _backSpineAnim.loop = true;
+                    _backSpineAnim.AnimationName = "climb";
+                }
+                break;
+            case ePlayerState.TURN:
+                {
+                    _frontSpineAnim.gameObject.SetActive(false);
+                    _backSpineAnim.gameObject.SetActive(true);
+                    _backSpineAnim.loop = true;
+                    _backSpineAnim.AnimationName = "turn";
                 }
                 break;
             default:
@@ -378,13 +499,13 @@ public class PlayerController : MonoBehaviour
             case eDirection.LEFT:
                 {
                     _nowDirection = eDirection.LEFT;
-                    _spineAnim.skeleton.ScaleX = Mathf.Abs(_spineAnim.skeleton.ScaleX);
+                    _frontSpineAnim.skeleton.ScaleX = Mathf.Abs(_frontSpineAnim.skeleton.ScaleX);
                 }
                 break;
             case eDirection.RIGHT:
                 {
                     _nowDirection = eDirection.RIGHT;
-                    _spineAnim.skeleton.ScaleX = -Mathf.Abs(_spineAnim.skeleton.ScaleX);
+                    _frontSpineAnim.skeleton.ScaleX = -Mathf.Abs(_frontSpineAnim.skeleton.ScaleX);
                 }
                 break;
             default:
@@ -392,11 +513,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void CheckIdle()
+    bool CheckIdle()
     {
-        if (Mathf.Abs(_rigid.velocity.x) <= 0.0f && CanTranstition(ePlayerState.STANDBY))
-        {
-            ChangeState(ePlayerState.STANDBY);
-        }
+        return Mathf.Abs(_rigid.velocity.x) <= 0.0f && CanTranstition(ePlayerState.STANDBY);
+    }
+
+    bool CheckAerial()
+    {
+        return Mathf.Abs(_rigid.velocity.y) >= 3.0f;
     }
 }
