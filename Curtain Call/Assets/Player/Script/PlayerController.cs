@@ -2,6 +2,7 @@ using Spine.Unity;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using Unity.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -12,7 +13,7 @@ public enum ePlayerNumber
     PLAYER2
 }
 
-public enum ePlayerStatus
+public enum ePlayerState
 {
     GRAB,
     JUMP,
@@ -40,24 +41,29 @@ public class PlayerController : MonoBehaviour
     public ePlayerNumber playerNumber;
     public float moveSpeed = 25.0f;
     public float speedLimit = 5.0f;
+    public float runSpeedRatio = 1.5f;
 
-    private Rigidbody2D rigid;
-    private SkeletonAnimation spineAnim;
-    private ePlayerStatus prevStatus = ePlayerStatus.STANDBY;
-    private ePlayerStatus nowStatus = ePlayerStatus.STANDBY;
-    private eDirection direction = eDirection.LEFT;
-    private bool isRunning = false;
+    private Rigidbody2D _rigid;
+    private SkeletonAnimation _spineAnim;
 
-    private KeyCode rightKeyCode = KeyCode.None;
-    private KeyCode leftKeyCode = KeyCode.None;
-    private KeyCode runKeyCode = KeyCode.None;
-    private Vector2 moveVec = Vector2.zero;
+    private ePlayerState _nowState = ePlayerState.STOP;
+    private eDirection _nowDirection = eDirection.LEFT;
+    private KeyCode _leftKeyCode = KeyCode.None;
+    private KeyCode _rightKeyCode = KeyCode.None;
+    private KeyCode _runKeyCode = KeyCode.None;
+    private Vector2 _moveVec = Vector2.zero;
+
+    private Dictionary<KeyCode, bool> _inputMap = new Dictionary<KeyCode, bool>();
 
     private void Start()
     {
-        rigid = GetComponent<Rigidbody2D>();
-        spineAnim = GetComponentInChildren<SkeletonAnimation>();
+        _rigid = GetComponent<Rigidbody2D>();
+        _spineAnim = GetComponentInChildren<SkeletonAnimation>();
         CheckPlayerNum();
+
+        _inputMap.Add(_leftKeyCode, false);
+        _inputMap.Add(_rightKeyCode, false);
+        _inputMap.Add(_runKeyCode, false);
     }
 
     /// <summary>
@@ -66,46 +72,36 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void FixedUpdate()
     {
-        rigid.AddForce(moveVec);
+        _rigid.AddForce(_moveVec);
 
         float limit = speedLimit;
 
-        if(nowStatus.Equals(ePlayerStatus.RUN))
+        if (_nowState.Equals(ePlayerState.RUN))
         {
-            limit *= 1.5f;
+            limit *= runSpeedRatio;
         }
 
-        if (Mathf.Abs(rigid.velocity.x) > limit)
+        if (Mathf.Abs(_rigid.velocity.x) > limit)
         {
-            if(rigid.velocity.x < 0)
+            if (_rigid.velocity.x < 0)
             {
                 limit = -limit;
             }
 
-            rigid.velocity = new Vector2(limit, rigid.velocity.y);
+            _rigid.velocity = new Vector2(limit, _rigid.velocity.y);
         }
-
     }
 
     private void Update()
     {
-        moveVec = Vector2.zero;
+        Flush();
         CheckInput();
+        SetAction();
     }
 
-    private void LateUpdate() 
+    private void LateUpdate()
     {
-        // 움직이고자 하는 방향과 현재 속도의 방향이 다르면 / 움직이고자 하는 방향이 없다면
-        if (nowStatus.Equals(ePlayerStatus.RUN) && moveVec.x <= 0)
-        {
-            ChangeStatus(ePlayerStatus.STOP);
-        }
-
-        if (Mathf.Abs(rigid.velocity.x) <= 0.0f) 
-        {
-            ChangeStatus(ePlayerStatus.STANDBY);
-        }
-
+        CheckIdle();
         AnimateSpine();
     }
 
@@ -118,20 +114,29 @@ public class PlayerController : MonoBehaviour
         {
             case ePlayerNumber.PLAYER1:
                 {
-                    leftKeyCode = KeyCode.LeftArrow;
-                    rightKeyCode = KeyCode.RightArrow;
-                    runKeyCode = KeyCode.RightShift;
+                    _leftKeyCode = KeyCode.LeftArrow;
+                    _rightKeyCode = KeyCode.RightArrow;
+                    _runKeyCode = KeyCode.RightShift;
                 }
                 break;
             case ePlayerNumber.PLAYER2:
                 {
-                    leftKeyCode = KeyCode.A;
-                    rightKeyCode = KeyCode.D;
-                    runKeyCode = KeyCode.LeftShift;
+                    _leftKeyCode = KeyCode.A;
+                    _rightKeyCode = KeyCode.D;
+                    _runKeyCode = KeyCode.LeftShift;
                 }
                 break;
             default:
                 break;
+        }
+    }
+
+    void Flush()
+    {
+        _moveVec = Vector2.zero;
+        foreach (var item in _inputMap.ToList())
+        {
+            _inputMap[item.Key] = false;
         }
     }
 
@@ -141,81 +146,219 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void CheckInput()
     {
-        // TODO : 조이스틱 입력도 받아야 하고
-
-        if (Input.GetKey(runKeyCode) && !nowStatus.Equals(ePlayerStatus.RUN))
+        if (Input.GetKey(_leftKeyCode))
         {
-            nowStatus = ePlayerStatus.RUN;
+            _inputMap[_leftKeyCode] = true;
+        }
+        else if (Input.GetKey(_rightKeyCode))
+        {
+            _inputMap[_rightKeyCode] = true;
         }
 
-        if (Input.GetKey(leftKeyCode))
+        if (Input.GetKey(_runKeyCode))
         {
-            direction = eDirection.LEFT;
-            moveVec = -(transform.right * moveSpeed);
-            spineAnim.skeleton.ScaleX = Mathf.Abs(spineAnim.skeleton.ScaleX);
-            // transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
-        }
-        else if (Input.GetKey(rightKeyCode))
-        {
-            direction = eDirection.RIGHT;
-            moveVec = transform.right * moveSpeed;
-            spineAnim.skeleton.ScaleX = -Mathf.Abs(spineAnim.skeleton.ScaleX);
-            // transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
-        }
-
-        if (moveVec != Vector2.zero && !nowStatus.Equals(ePlayerStatus.RUN))
-        {
-            nowStatus = ePlayerStatus.WALK;
-        }
-
-        if (nowStatus.Equals(ePlayerStatus.RUN))
-        {
-            moveVec *= 1.5f;
+            _inputMap[_runKeyCode] = true;
         }
     }
+
+    void SetAction()
+    {
+        if (CanTranstition(ePlayerState.STOP)
+            && ((!_inputMap[_leftKeyCode] && !_inputMap[_rightKeyCode])
+                || (_nowDirection == eDirection.RIGHT && _inputMap[_leftKeyCode])
+                || (_nowDirection == eDirection.LEFT && _inputMap[_rightKeyCode])))
+        {
+            // 아무 입력이 없거나
+            // 반대 방향으로 갑자기 뛰려고 할 때?
+            _moveVec = Vector2.zero;
+            ChangeState(ePlayerState.STOP);
+        }
+        else if (_inputMap[_runKeyCode] && CanTranstition(ePlayerState.RUN))
+        {
+            if (_inputMap[_leftKeyCode])
+            {
+                ChangeDirection(eDirection.LEFT);
+                _moveVec = -(transform.right * moveSpeed) * runSpeedRatio;
+            }
+            else if (_inputMap[_rightKeyCode])
+            {
+                ChangeDirection(eDirection.RIGHT);
+                _moveVec = transform.right * moveSpeed * runSpeedRatio;
+            }
+
+            ChangeState(ePlayerState.RUN);
+        }
+        else if(CanTranstition(ePlayerState.WALK))
+        {
+            if (_inputMap[_leftKeyCode])
+            {
+                ChangeDirection(eDirection.LEFT);
+                _moveVec = -(transform.right * moveSpeed);
+            }
+            else if (_inputMap[_rightKeyCode])
+            {
+                ChangeDirection(eDirection.RIGHT);
+                _moveVec = transform.right * moveSpeed;
+            }
+
+            ChangeState(ePlayerState.WALK);
+        }
+    }
+
+    void DoAction()
+    {
+
+    }
+
+    bool CanTranstition(ePlayerState state)
+    {
+        switch (_nowState)
+        {
+            case ePlayerState.GRAB:
+                {
+                    switch (state)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                break;
+            case ePlayerState.JUMP:
+                {
+                    switch (state)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                break;
+            case ePlayerState.PUSH:
+                {
+                    switch (state)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                break;
+            case ePlayerState.RUN:
+                {
+                    switch (state)
+                    {
+                        case ePlayerState.GRAB:
+                        case ePlayerState.JUMP:
+                        case ePlayerState.PUSH:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STOP:
+                        case ePlayerState.WALK:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            case ePlayerState.STANDBY:
+                {
+                    switch (state)
+                    {
+                        case ePlayerState.GRAB:
+                        case ePlayerState.JUMP:
+                        case ePlayerState.PUSH:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STANDBY:
+                        case ePlayerState.WALK:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            case ePlayerState.STOP:
+                {
+                    switch (state)
+                    {
+                        case ePlayerState.GRAB:
+                        case ePlayerState.JUMP:
+                        case ePlayerState.PUSH:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STANDBY:
+                        case ePlayerState.STOP:
+                        case ePlayerState.WALK:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            case ePlayerState.WALK:
+                {
+                    switch (state)
+                    {
+                        case ePlayerState.GRAB:
+                        case ePlayerState.JUMP:
+                        case ePlayerState.PUSH:
+                        case ePlayerState.RUN:
+                        case ePlayerState.STANDBY:
+                        case ePlayerState.WALK:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            default:
+                return false;
+        }
+
+        return false;
+    }
+
 
     /// <summary>
     /// 현재 상태에 맞는 스파인 애니메이션을 출력하는 함수.
     /// </summary>
     void AnimateSpine()
     {
-        Debug.Log(nowStatus);
+        Debug.Log(_nowState);
 
-        switch (nowStatus)
+        switch (_nowState)
         {
-            case ePlayerStatus.GRAB:
+            case ePlayerState.GRAB:
                 {
-                    spineAnim.AnimationName = "grab";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "grab";
                 }
                 break;
-            case ePlayerStatus.JUMP:
+            case ePlayerState.JUMP:
                 {
-                    spineAnim.AnimationName = "jump";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "jump";
                 }
                 break;
-            case ePlayerStatus.PUSH:
+            case ePlayerState.PUSH:
                 {
-                    spineAnim.AnimationName = "push";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "push";
                 }
                 break;
-            case ePlayerStatus.RUN:
+            case ePlayerState.RUN:
                 {
-                    spineAnim.AnimationName = "run";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "run";
                 }
                 break;
-            case ePlayerStatus.STANDBY:
+            case ePlayerState.STANDBY:
                 {
-                    spineAnim.AnimationName = "standby";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "standby";
                 }
                 break;
-            case ePlayerStatus.STOP:
+            case ePlayerState.STOP:
                 {
-                    spineAnim.AnimationName = "stop";
+                    _spineAnim.loop = false;
+                    _spineAnim.AnimationName = "stop";
                 }
                 break;
-            case ePlayerStatus.WALK:
+            case ePlayerState.WALK:
                 {
-                    spineAnim.AnimationName = "walk";
+                    _spineAnim.loop = true;
+                    _spineAnim.AnimationName = "walk";
                 }
                 break;
             default:
@@ -223,9 +366,37 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void ChangeStatus(ePlayerStatus status)
+    void ChangeState(ePlayerState state)
     {
-        prevStatus = nowStatus;
-        nowStatus = status;
+        _nowState = state;
+    }
+
+    void ChangeDirection(eDirection direction)
+    {
+        switch (direction)
+        {
+            case eDirection.LEFT:
+                {
+                    _nowDirection = eDirection.LEFT;
+                    _spineAnim.skeleton.ScaleX = Mathf.Abs(_spineAnim.skeleton.ScaleX);
+                }
+                break;
+            case eDirection.RIGHT:
+                {
+                    _nowDirection = eDirection.RIGHT;
+                    _spineAnim.skeleton.ScaleX = -Mathf.Abs(_spineAnim.skeleton.ScaleX);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    void CheckIdle()
+    {
+        if (Mathf.Abs(_rigid.velocity.x) <= 0.0f && CanTranstition(ePlayerState.STANDBY))
+        {
+            ChangeState(ePlayerState.STANDBY);
+        }
     }
 }
