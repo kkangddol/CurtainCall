@@ -22,7 +22,7 @@ public enum ePlayerState
     STANDBY,
     STOP,
     WALK,
-    CLIMB,
+    CLIMBING,
     TURN
 }
 
@@ -41,13 +41,15 @@ public enum eDirection
 public class PlayerController : MonoBehaviour
 {
     [SerializeField]
-    private ePlayerNumber playerNumber;
+    private ePlayerNumber _playerNumber;
     [SerializeField]
-    private float moveSpeed = 25.0f;
+    private float _moveSpeed = 25.0f;
     [SerializeField]
-    private float speedLimit = 5.0f;
+    private float _climbSpeed = 5.0f;
     [SerializeField]
-    private float runSpeedRatio = 1.5f;
+    private float _speedLimit = 5.0f;
+    [SerializeField]
+    private float _runSpeedRatio = 1.5f;
 
     [SerializeField]
     private SkeletonAnimation _frontSpineAnim;
@@ -55,7 +57,6 @@ public class PlayerController : MonoBehaviour
     private SkeletonAnimation _backSpineAnim;
 
     private Rigidbody2D _rigid;
-    private Collider2D _collider;
 
     private ePlayerState _nowState = ePlayerState.STOP;
     private eDirection _nowDirection = eDirection.LEFT;
@@ -64,15 +65,16 @@ public class PlayerController : MonoBehaviour
     private KeyCode _rightKeyCode = KeyCode.None;
     private KeyCode _downKeyCode = KeyCode.None;
     private KeyCode _runKeyCode = KeyCode.None;
+    private KeyCode _jumpKeyCode = KeyCode.None;
     private Vector2 _moveVec = Vector2.zero;
 
     private Dictionary<KeyCode, bool> _inputMap = new Dictionary<KeyCode, bool>();
     private bool _isClimbable = false;
+    private Vector3 _colPos = Vector3.zero;
 
     private void Start()
     {
         _rigid = GetComponent<Rigidbody2D>();
-        _collider = GetComponent<CapsuleCollider2D>();
         CheckPlayerNum();
 
         _inputMap.Add(_leftKeyCode, false);
@@ -80,6 +82,7 @@ public class PlayerController : MonoBehaviour
         _inputMap.Add(_rightKeyCode, false);
         _inputMap.Add(_downKeyCode, false);
         _inputMap.Add(_runKeyCode, false);
+        _inputMap.Add(_jumpKeyCode, false);
     }
 
     /// <summary>
@@ -90,11 +93,11 @@ public class PlayerController : MonoBehaviour
     {
         _rigid.AddForce(_moveVec);
 
-        float limit = speedLimit;
+        float limit = _speedLimit;
 
         if (_nowState.Equals(ePlayerState.RUN))
         {
-            limit *= runSpeedRatio;
+            limit *= _runSpeedRatio;
         }
 
         if (Mathf.Abs(_rigid.velocity.x) > limit)
@@ -108,12 +111,21 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void OnTriggerStay2D(Collider2D collision)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
-        _isClimbable = false;
         if (collision.CompareTag("Ladder"))
         {
             _isClimbable = true;
+            _colPos = collision.transform.position;
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D collision)
+    {
+        if(collision.CompareTag("Ladder"))
+        {
+            _isClimbable = false;
+            _colPos = transform.position;
         }
     }
 
@@ -136,6 +148,23 @@ public class PlayerController : MonoBehaviour
             ChangeState(ePlayerState.JUMP);
         }
 
+        if(IsClimbing())
+        {
+            _rigid.velocity = Vector2.zero;
+            transform.position = new Vector3(_colPos.x, transform.position.y, transform.position.z);
+            _rigid.isKinematic = true;
+            
+            _backSpineAnim.timeScale -= 1.0f * Time.deltaTime;
+            if(_backSpineAnim.timeScale <= 0.0f)
+            {
+                _backSpineAnim.timeScale = 0.0f;
+            }
+        }
+        else
+        {
+            _rigid.isKinematic = false;
+        }
+
         AnimateSpine();
     }
 
@@ -144,7 +173,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void CheckPlayerNum()
     {
-        switch (playerNumber)
+        switch (_playerNumber)
         {
             case ePlayerNumber.PLAYER1:
                 {
@@ -153,6 +182,7 @@ public class PlayerController : MonoBehaviour
                     _rightKeyCode = KeyCode.RightArrow;
                     _downKeyCode = KeyCode.DownArrow;
                     _runKeyCode = KeyCode.RightShift;
+                    _jumpKeyCode = KeyCode.RightControl;
                 }
                 break;
             case ePlayerNumber.PLAYER2:
@@ -162,6 +192,7 @@ public class PlayerController : MonoBehaviour
                     _rightKeyCode = KeyCode.D;
                     _downKeyCode = KeyCode.S;
                     _runKeyCode = KeyCode.LeftShift;
+                    _jumpKeyCode = KeyCode.LeftControl;
                 }
                 break;
             default:
@@ -206,6 +237,11 @@ public class PlayerController : MonoBehaviour
         {
             _inputMap[_downKeyCode] = true;
         }
+
+        if( Input.GetKey(_jumpKeyCode))
+        {
+            _inputMap[_jumpKeyCode] = true;
+        }
     }
 
     void SetAction()
@@ -214,17 +250,33 @@ public class PlayerController : MonoBehaviour
         {
             if (_inputMap[_downKeyCode])
             {
-                _moveVec = -(transform.up * moveSpeed);
-                ChangeState(ePlayerState.CLIMB);
+                ChangeState(ePlayerState.CLIMBING);
+                _backSpineAnim.timeScale = 1;
+                transform.Translate(-transform.up * _climbSpeed * Time.deltaTime);
+                _rigid.isKinematic = true;
                 return;
             }
             else if (_inputMap[_upKeyCode])
             {
-                _moveVec = (transform.up * moveSpeed);
-                ChangeState(ePlayerState.CLIMB);
+                ChangeState(ePlayerState.CLIMBING);
+                _backSpineAnim.timeScale = 1;
+                transform.Translate(transform.up * _climbSpeed * Time.deltaTime);
+                _rigid.isKinematic = true;
                 return;
             }
         }
+        else
+        {
+            if (_inputMap[_downKeyCode] || _inputMap[_upKeyCode])
+            {
+                ChangeState(ePlayerState.STANDBY);
+            }
+        }
+
+//         if()
+//         {
+// 
+//         }
 
         if (CanTranstition(ePlayerState.STOP)
             && ((!_inputMap[_leftKeyCode] && !_inputMap[_rightKeyCode])
@@ -241,13 +293,13 @@ public class PlayerController : MonoBehaviour
             if (_inputMap[_leftKeyCode])
             {
                 ChangeDirection(eDirection.LEFT);
-                _moveVec = -(transform.right * moveSpeed) * runSpeedRatio;
+                _moveVec = -(transform.right * _moveSpeed) * _runSpeedRatio;
                 ChangeState(ePlayerState.RUN);
             }
             else if (_inputMap[_rightKeyCode])
             {
                 ChangeDirection(eDirection.RIGHT);
-                _moveVec = transform.right * moveSpeed * runSpeedRatio;
+                _moveVec = transform.right * _moveSpeed * _runSpeedRatio;
                 ChangeState(ePlayerState.RUN);
             }
         }
@@ -256,13 +308,13 @@ public class PlayerController : MonoBehaviour
             if (_inputMap[_leftKeyCode])
             {
                 ChangeDirection(eDirection.LEFT);
-                _moveVec = -(transform.right * moveSpeed);
+                _moveVec = -(transform.right * _moveSpeed);
                 ChangeState(ePlayerState.WALK);
             }
             else if (_inputMap[_rightKeyCode])
             {
                 ChangeDirection(eDirection.RIGHT);
-                _moveVec = transform.right * moveSpeed;
+                _moveVec = transform.right * _moveSpeed;
                 ChangeState(ePlayerState.WALK);
             }
         }
@@ -289,7 +341,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
@@ -314,7 +366,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
@@ -330,7 +382,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
@@ -347,7 +399,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.STANDBY:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
@@ -363,21 +415,20 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
                     }
                 }
-            case ePlayerState.CLIMB:
+            case ePlayerState.CLIMBING:
                 {
                     switch (state)
                     {
                         case ePlayerState.JUMP:
                         case ePlayerState.RUN:
-                        case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.CLIMB:
+                        case ePlayerState.CLIMBING:
                             return true;
                         default:
                             return false;
@@ -466,12 +517,12 @@ public class PlayerController : MonoBehaviour
                 }
                 break;
 
-            case ePlayerState.CLIMB:
+            case ePlayerState.CLIMBING:
                 {
                     _frontSpineAnim.gameObject.SetActive(false);
                     _backSpineAnim.gameObject.SetActive(true);
                     _backSpineAnim.loop = true;
-                    _backSpineAnim.AnimationName = "climb";
+                    _backSpineAnim.AnimationName = "climbing";
                 }
                 break;
             case ePlayerState.TURN:
@@ -521,5 +572,10 @@ public class PlayerController : MonoBehaviour
     bool CheckAerial()
     {
         return Mathf.Abs(_rigid.velocity.y) >= 3.0f;
+    }
+
+    bool IsClimbing()
+    {
+        return _nowState.Equals(ePlayerState.CLIMBING);
     }
 }
