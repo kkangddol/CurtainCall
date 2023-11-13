@@ -691,7 +691,7 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.95}
+  m_Offset: {x: 0, y: 1.005}
   m_Size: {x: 1, y: 2}
   m_Direction: 0
 --- !u!114 &552178951
@@ -708,9 +708,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerNumber: 1
   _moveSpeed: 25
-  _climbSpeed: 5
+  _climbSpeed: 3
   _speedLimit: 5
   _runSpeedRatio: 1.5
+  _jumpPower: 7
   _frontSpineAnim: {fileID: 1948619970}
   _backSpineAnim: {fileID: 964827164}
 --- !u!4 &552178953
@@ -1599,9 +1600,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerNumber: 0
   _moveSpeed: 25
-  _climbSpeed: 5
+  _climbSpeed: 3
   _speedLimit: 5
   _runSpeedRatio: 1.5
+  _jumpPower: 7
   _frontSpineAnim: {fileID: 391437717}
   _backSpineAnim: {fileID: 1405204484}
 --- !u!50 &1817767009
@@ -1612,7 +1614,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1817767006}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -1663,7 +1665,7 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.95}
+  m_Offset: {x: 0, y: 1.005}
   m_Size: {x: 1, y: 2}
   m_Direction: 0
 --- !u!1 &1819806365
