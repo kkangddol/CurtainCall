@@ -23,7 +23,8 @@ public enum ePlayerState
     STOP,
     WALK,
     CLIMBING,
-    TURN
+    TURN,
+    INTERACT
 }
 
 public enum eDirection
@@ -66,6 +67,7 @@ public class PlayerController : MonoBehaviour
     private string _vertical;
     private string _runKey;
     private string _jumpKey;
+    private string _interactKey;
     private Vector2 _moveVec = Vector2.zero;
 
     private Dictionary<string, float> _inputMap = new Dictionary<string, float>();
@@ -82,6 +84,7 @@ public class PlayerController : MonoBehaviour
         _inputMap.Add(_vertical, 0.0f);
         _inputMap.Add(_runKey, 0.0f);
         _inputMap.Add(_jumpKey, 0.0f);
+        _inputMap.Add(_interactKey, 0.0f);
     }
 
     /// <summary>
@@ -180,6 +183,7 @@ public class PlayerController : MonoBehaviour
                     _vertical = "Vertical1";
                     _runKey = "Run1";
                     _jumpKey = "Jump1";
+                    _interactKey = "Interact1";
                 }
                 break;
             case ePlayerNumber.PLAYER2:
@@ -188,6 +192,7 @@ public class PlayerController : MonoBehaviour
                     _vertical = "Vertical2";
                     _runKey = "Run2";
                     _jumpKey = "Jump2";
+                    _interactKey = "Interact2";
                 }
                 break;
             default:
@@ -218,14 +223,7 @@ public class PlayerController : MonoBehaviour
 
     void SetAction()
     {
-        if(_inputMap[_horizontal] < -0.1f)
-        {
-            ChangeDirection(eDirection.LEFT);
-        }
-        else if (_inputMap[_horizontal] > 0.1f)
-        {
-            ChangeDirection(eDirection.RIGHT);
-        }
+        Debug.Log(Input.GetAxis(_horizontal));
 
         if (_inputMap[_vertical] > 0.1f)
         {
@@ -267,7 +265,7 @@ public class PlayerController : MonoBehaviour
             }
 
             if (CanTranstition(ePlayerState.STOP)
-                && ((_inputMap[_horizontal] == 0.0f)
+                && ((-0.1f < _inputMap[_horizontal] && _inputMap[_horizontal] < 0.1f)
                     || (_nowDirection == eDirection.RIGHT && _inputMap[_horizontal] < -0.1f)
                     || (_nowDirection == eDirection.LEFT && _inputMap[_horizontal] > 0.1f)))
             {
@@ -315,6 +313,14 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        if (_inputMap[_horizontal] < -0.1f)
+        {
+            ChangeDirection(eDirection.LEFT);
+        }
+        else if (_inputMap[_horizontal] > 0.1f)
+        {
+            ChangeDirection(eDirection.RIGHT);
+        }
     }
 
     bool CanTranstition(ePlayerState state)
@@ -373,6 +379,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
+                        case ePlayerState.INTERACT:
                             if (_isGrounded)
                             {
                                 return true;
@@ -400,6 +407,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
+                        case ePlayerState.INTERACT:
                             if (_isGrounded)
                             {
                                 return true;
@@ -428,6 +436,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.STANDBY:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
+                        case ePlayerState.INTERACT:
                             if (_isGrounded)
                             {
                                 return true;
@@ -455,6 +464,7 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
+                        case ePlayerState.INTERACT:
                             if (_isGrounded)
                             {
                                 return true;
@@ -495,6 +505,15 @@ public class PlayerController : MonoBehaviour
             case ePlayerState.TURN:
                 {
                     switch (state)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                break;
+            case ePlayerState.INTERACT:
+                {
+                    switch(state)
                     {
                         default:
                             break;
@@ -638,7 +657,7 @@ public class PlayerController : MonoBehaviour
 
     bool CheckIdle()
     {
-        return IsGround() && Mathf.Abs(_rigid.velocity.x) <= 2.0f && CanTranstition(ePlayerState.STANDBY);
+        return IsGround() && Mathf.Abs(_rigid.velocity.x) <= 1.5f && CanTranstition(ePlayerState.STANDBY);
     }
 
     bool IsGround()
