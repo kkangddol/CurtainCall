@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using UniRx;
+using UniRx.Triggers;
 using Unity.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
