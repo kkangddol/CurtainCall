@@ -62,15 +62,13 @@ public class PlayerController : MonoBehaviour
 
     private ePlayerState _nowState = ePlayerState.STANDBY;
     private eDirection _nowDirection = eDirection.LEFT;
-    private KeyCode _leftKeyCode = KeyCode.None;
-    private KeyCode _upKeyCode = KeyCode.None;
-    private KeyCode _rightKeyCode = KeyCode.None;
-    private KeyCode _downKeyCode = KeyCode.None;
-    private KeyCode _runKeyCode = KeyCode.None;
-    private KeyCode _jumpKeyCode = KeyCode.None;
+    private string _horizontal;
+    private string _vertical;
+    private string _runKey;
+    private string _jumpKey;
     private Vector2 _moveVec = Vector2.zero;
 
-    private Dictionary<KeyCode, bool> _inputMap = new Dictionary<KeyCode, bool>();
+    private Dictionary<string, float> _inputMap = new Dictionary<string, float>();
     private bool _isClimbable = false;
     private bool _isGrounded = false;
     private Vector3 _colPos = Vector3.zero;
@@ -80,12 +78,10 @@ public class PlayerController : MonoBehaviour
         _rigid = GetComponent<Rigidbody2D>();
         CheckPlayerNum();
 
-        _inputMap.Add(_leftKeyCode, false);
-        _inputMap.Add(_upKeyCode, false);
-        _inputMap.Add(_rightKeyCode, false);
-        _inputMap.Add(_downKeyCode, false);
-        _inputMap.Add(_runKeyCode, false);
-        _inputMap.Add(_jumpKeyCode, false);
+        _inputMap.Add(_horizontal, 0.0f);
+        _inputMap.Add(_vertical, 0.0f);
+        _inputMap.Add(_runKey, 0.0f);
+        _inputMap.Add(_jumpKey, 0.0f);
     }
 
     /// <summary>
@@ -180,22 +176,18 @@ public class PlayerController : MonoBehaviour
         {
             case ePlayerNumber.PLAYER1:
                 {
-                    _leftKeyCode = KeyCode.LeftArrow;
-                    _upKeyCode = KeyCode.UpArrow;
-                    _rightKeyCode = KeyCode.RightArrow;
-                    _downKeyCode = KeyCode.DownArrow;
-                    _runKeyCode = KeyCode.RightShift;
-                    _jumpKeyCode = KeyCode.RightControl;
+                    _horizontal = "Horizontal1";
+                    _vertical = "Vertical1";
+                    _runKey = "Run1";
+                    _jumpKey = "Jump1";
                 }
                 break;
             case ePlayerNumber.PLAYER2:
                 {
-                    _leftKeyCode = KeyCode.A;
-                    _upKeyCode = KeyCode.W;
-                    _rightKeyCode = KeyCode.D;
-                    _downKeyCode = KeyCode.S;
-                    _runKeyCode = KeyCode.LeftShift;
-                    _jumpKeyCode = KeyCode.LeftControl;
+                    _horizontal = "Horizontal2";
+                    _vertical = "Vertical2";
+                    _runKey = "Run2";
+                    _jumpKey = "Jump2";
                 }
                 break;
             default:
@@ -208,7 +200,7 @@ public class PlayerController : MonoBehaviour
         _moveVec = Vector2.zero;
         foreach (var item in _inputMap.ToList())
         {
-            _inputMap[item.Key] = false;
+            _inputMap[item.Key] = 0.0f;
         }
     }
 
@@ -218,47 +210,24 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void CheckInput()
     {
-        if (Input.GetKey(_leftKeyCode))
-        {
-            _inputMap[_leftKeyCode] = true;
-        }
-        else if (Input.GetKey(_rightKeyCode))
-        {
-            _inputMap[_rightKeyCode] = true;
-        }
-
-        if (Input.GetKey(_runKeyCode))
-        {
-            _inputMap[_runKeyCode] = true;
-        }
-
-        if (Input.GetKey(_upKeyCode))
-        {
-            _inputMap[_upKeyCode] = true;
-        }
-        else if (Input.GetKey(_downKeyCode))
-        {
-            _inputMap[_downKeyCode] = true;
-        }
-
-        if( Input.GetKey(_jumpKeyCode))
-        {
-            _inputMap[_jumpKeyCode] = true;
-        }
+        _inputMap[_horizontal] = Input.GetAxis(_horizontal);
+        _inputMap[_vertical] = Input.GetAxis(_vertical);
+        _inputMap[_runKey] = Input.GetAxis(_runKey);
+        _inputMap[_jumpKey] = Input.GetAxis(_jumpKey);
     }
 
     void SetAction()
     {
-        if(_inputMap[_leftKeyCode])
+        if(_inputMap[_horizontal] < -0.1f)
         {
             ChangeDirection(eDirection.LEFT);
         }
-        else if (_inputMap[_rightKeyCode])
+        else if (_inputMap[_horizontal] > 0.1f)
         {
             ChangeDirection(eDirection.RIGHT);
         }
 
-        if (_inputMap[_upKeyCode])
+        if (_inputMap[_vertical] > 0.1f)
         {
             if(CanTranstition(ePlayerState.CLIMBING))
             {
@@ -273,7 +242,7 @@ public class PlayerController : MonoBehaviour
                 ChangeState(ePlayerState.STANDBY);
             }
         }
-        else if(_inputMap[_downKeyCode])
+        else if(_inputMap[_vertical] < -0.1f)
         {
             if (CanTranstition(ePlayerState.CLIMBING))
             {
@@ -291,30 +260,30 @@ public class PlayerController : MonoBehaviour
 
         if (_isGrounded || _nowState.Equals(ePlayerState.CLIMBING))
         {
-            if (_inputMap[_jumpKeyCode] && CanTranstition(ePlayerState.JUMP))
+            if (_inputMap[_jumpKey] > 0.5f && CanTranstition(ePlayerState.JUMP))
             {
                 _rigid.AddForce(transform.up * _jumpPower, ForceMode2D.Impulse);
                 ChangeState(ePlayerState.JUMP);
             }
 
             if (CanTranstition(ePlayerState.STOP)
-                && ((!_inputMap[_leftKeyCode] && !_inputMap[_rightKeyCode])
-                    || (_nowDirection == eDirection.RIGHT && _inputMap[_leftKeyCode])
-                    || (_nowDirection == eDirection.LEFT && _inputMap[_rightKeyCode])))
+                && ((_inputMap[_horizontal] == 0.0f)
+                    || (_nowDirection == eDirection.RIGHT && _inputMap[_horizontal] < -0.1f)
+                    || (_nowDirection == eDirection.LEFT && _inputMap[_horizontal] > 0.1f)))
             {
                 // 아무 입력이 없거나
                 // 반대 방향으로 갑자기 뛰려고 할 때?
                 _moveVec = Vector2.zero;
                 ChangeState(ePlayerState.STOP);
             }
-            else if (_inputMap[_runKeyCode] && CanTranstition(ePlayerState.RUN))
+            else if (_inputMap[_runKey] > 0.5f && CanTranstition(ePlayerState.RUN))
             {
-                if (_inputMap[_leftKeyCode])
+                if (_inputMap[_horizontal] < -0.1f)
                 {
                     _moveVec = -transform.right * _moveSpeed * _runSpeedRatio;
                     ChangeState(ePlayerState.RUN);
                 }
-                else if (_inputMap[_rightKeyCode])
+                else if (_inputMap[_horizontal] > 0.1f)
                 {
                     _moveVec = transform.right * _moveSpeed * _runSpeedRatio;
                     ChangeState(ePlayerState.RUN);
@@ -322,12 +291,12 @@ public class PlayerController : MonoBehaviour
             }
             else if (CanTranstition(ePlayerState.WALK))
             {
-                if (_inputMap[_leftKeyCode])
+                if (_inputMap[_horizontal] < -0.1f)
                 {
                     _moveVec = -(transform.right * _moveSpeed);
                     ChangeState(ePlayerState.WALK);
                 }
-                else if (_inputMap[_rightKeyCode])
+                else if (_inputMap[_horizontal] > 0.1f)
                 {
                     _moveVec = transform.right * _moveSpeed;
                     ChangeState(ePlayerState.WALK);
@@ -336,11 +305,11 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            if (_inputMap[_leftKeyCode])
+            if (_inputMap[_horizontal] < -0.1f)
             {
                 _moveVec = -(transform.right * _moveSpeed / 3);
             }
-            else if (_inputMap[_rightKeyCode])
+            else if (_inputMap[_horizontal] > 0.1f)
             {
                 _moveVec = transform.right * _moveSpeed / 3;
             }
