@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UniRx;
+using Unity.Mathematics;
 using UnityEngine;
 using Quaternion = System.Numerics.Quaternion;
 
@@ -9,15 +10,17 @@ public class Lever : Trigger
 {
     [SerializeField]
     private Transform _stick;
-    public override void ConnectImpl(IObservable<Unit> stream)
+    public override void ConnectImpl(ref IObservable<Unit> stream)
     {
-        stream.Where(_ => Input.GetAxis("Horizontal") > 0)
+        stream.Where(_ => Input.GetAxis("Horizontal1") > 0)
+            .ThrottleFirst(TimeSpan.FromSeconds(0.1f))
             .Subscribe(_ =>
             {
                 progress += 0.1f;
             });
 
-        stream.Where(_ => Input.GetAxis("Horizontal") < 0)
+        stream.Where(_ => Input.GetAxis("Horizontal1") < 0)
+            .ThrottleFirst(TimeSpan.FromSeconds(0.1f))
             .Subscribe(_ =>
             {
                 progress -= 0.1f;
@@ -28,7 +31,7 @@ public class Lever : Trigger
     {
         if (_stick)
         {
-            _stick.Rotate(Vector3.forward, value * 180 * Mathf.Deg2Rad);
+            _stick.rotation = UnityEngine.Quaternion.AngleAxis(value * 90, -Vector3.forward);
         }
     }
 }

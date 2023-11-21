@@ -61,13 +61,18 @@ public abstract class Trigger : MonoBehaviour
         });
     }
 
-    public virtual void ConnectImpl(IObservable<Unit> stream)
+    public void Update()
+    {
+        Debug.Log(progress.ToString());
+    }
+
+    public virtual void ConnectImpl(ref IObservable<Unit> stream)
     {
 
     }//플레이어와 연결 될 부분 연결의 제어권은 플레이어에 있도록 Stream 자체를 넘김
     public void Connect(ref IObservable<Unit> stream) //플레이어와 연결 될 부분 연결의 제어권은 플레이어에 있도록 Stream 자체를 넘김
     {
-        stream.Subscribe(null,null, () =>
+        stream.Subscribe(_=>{},null, () =>
         {
             OnDisconnect();
             foreach (var reactant in _reactants)
@@ -82,7 +87,7 @@ public abstract class Trigger : MonoBehaviour
             reactant.OnConnect();
         }//OnConnect
 
-        ConnectImpl(stream);
+        ConnectImpl(ref stream);
        
     }
 

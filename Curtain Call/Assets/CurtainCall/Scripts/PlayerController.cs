@@ -263,10 +263,10 @@ public class PlayerController : MonoBehaviour
             {
                 ChangeState(ePlayerState.STANDBY);
             }
-            else if(_targetTrigger != null)
+            else
             {
                 ChangeState(ePlayerState.INTERACT);
-                var s = _targetTrigger.UpdateAsObservable().TakeWhile(_ => IsInteracting());
+                var s = this.UpdateAsObservable().TakeWhile(_ => IsInteracting());
                 _targetTrigger.Connect(ref s);
             }
             return;
