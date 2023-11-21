@@ -26,6 +26,9 @@ public class Lever : Trigger
 
     public override void OnProgressUpdate(float value)
     {
-        _stick.Rotate(Vector3.forward, value*180*Mathf.Deg2Rad);
+        if (_stick)
+        {
+            _stick.Rotate(Vector3.forward, value * 180 * Mathf.Deg2Rad);
+        }
     }
 }

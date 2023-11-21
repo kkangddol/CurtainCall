@@ -65,7 +65,7 @@ public abstract class Trigger : MonoBehaviour
     {
 
     }//플레이어와 연결 될 부분 연결의 제어권은 플레이어에 있도록 Stream 자체를 넘김
-    public void Connect(IObservable<Unit> stream) //플레이어와 연결 될 부분 연결의 제어권은 플레이어에 있도록 Stream 자체를 넘김
+    public void Connect(ref IObservable<Unit> stream) //플레이어와 연결 될 부분 연결의 제어권은 플레이어에 있도록 Stream 자체를 넘김
     {
         stream.Subscribe(null,null, () =>
         {

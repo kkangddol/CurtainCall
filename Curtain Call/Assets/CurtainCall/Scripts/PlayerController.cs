@@ -61,6 +61,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField]
     private SkeletonAnimation _backSpineAnim;
 
+    [SerializeField]
+    private Trigger _targetTrigger = null;
+
     private Rigidbody2D _rigid;
 
     private ePlayerState _nowState = ePlayerState.STANDBY;
@@ -74,8 +77,10 @@ public class PlayerController : MonoBehaviour
 
     private Dictionary<string, float> _inputMap = new Dictionary<string, float>();
     private bool _isClimbable = false;
+    private bool _isInteractable = false;
     private bool _isGrounded = false;
     private Vector3 _colPos = Vector3.zero;
+    
 
     private void Start()
     {
@@ -125,6 +130,12 @@ public class PlayerController : MonoBehaviour
                 _backSpineAnim.timeScale = 0.0f;
             }
         }
+        else if(IsInteracting())
+        {
+            _rigid.velocity = Vector2.zero;
+            transform.position = new Vector3(_colPos.x, transform.position.y, transform.position.z);
+            _rigid.isKinematic = true;
+        }
         else
         {
             _rigid.isKinematic = false;
@@ -156,19 +167,39 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag("Ladder"))
+        switch(collision.tag)
         {
-            _isClimbable = true;
-            _colPos = collision.transform.position;
+            case "Ladder":
+                _isClimbable = true;
+                _colPos = collision.transform.position;
+                break;
+
+            case "Trigger":
+                _isInteractable = true;
+                _colPos = collision.transform.position;
+                _targetTrigger = collision.GetComponent<Trigger>();
+                break;
+            default:
+                break;
         }
     }
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if(collision.CompareTag("Ladder"))
+        switch (collision.tag)
         {
-            _isClimbable = false;
-            _colPos = transform.position;
+            case "Ladder":
+                _isClimbable = false;
+                _colPos = transform.position;
+                break;
+
+            case "Trigger":
+                _isInteractable = false;
+                _colPos = transform.position;
+                _targetTrigger = null;
+                break;
+            default:
+                break;
         }
     }
 
@@ -221,13 +252,32 @@ public class PlayerController : MonoBehaviour
         _inputMap[_vertical] = Input.GetAxis(_vertical);
         _inputMap[_runKey] = Input.GetAxis(_runKey);
         _inputMap[_jumpKey] = Input.GetAxis(_jumpKey);
+        _inputMap[_interactKey] = Input.GetAxis(_interactKey);
     }
 
     void SetAction()
     {
-        Debug.Log(Input.GetAxis(_horizontal));
+        if (_inputMap[_interactKey] >= 1.0f && _isInteractable)
+        {
+            if (IsInteracting())
+            {
+                ChangeState(ePlayerState.STANDBY);
+            }
+            else if(_targetTrigger != null)
+            {
+                ChangeState(ePlayerState.INTERACT);
+                var s = _targetTrigger.UpdateAsObservable().TakeWhile(_ => IsInteracting());
+                _targetTrigger.Connect(ref s);
+            }
+            return;
+        }
 
-        if (_inputMap[_vertical] > 0.1f)
+        if(IsInteracting())
+        {
+            return;
+        }
+
+        if (_inputMap[_vertical] > 0.05f)
         {
             if(CanTranstition(ePlayerState.CLIMBING))
             {
@@ -242,7 +292,7 @@ public class PlayerController : MonoBehaviour
                 ChangeState(ePlayerState.STANDBY);
             }
         }
-        else if(_inputMap[_vertical] < -0.1f)
+        else if(_inputMap[_vertical] < -0.05f)
         {
             if (CanTranstition(ePlayerState.CLIMBING))
             {
@@ -260,7 +310,7 @@ public class PlayerController : MonoBehaviour
 
         if (_isGrounded || _nowState.Equals(ePlayerState.CLIMBING))
         {
-            if (_inputMap[_jumpKey] > 0.5f && CanTranstition(ePlayerState.JUMP))
+            if (_inputMap[_jumpKey] >= 1.0f && CanTranstition(ePlayerState.JUMP))
             {
                 _rigid.AddForce(transform.up * _jumpPower, ForceMode2D.Impulse);
                 ChangeState(ePlayerState.JUMP);
@@ -276,7 +326,7 @@ public class PlayerController : MonoBehaviour
                 _moveVec = Vector2.zero;
                 ChangeState(ePlayerState.STOP);
             }
-            else if (_inputMap[_runKey] > 0.5f && CanTranstition(ePlayerState.RUN))
+            else if (_inputMap[_runKey] >= 1.0f && CanTranstition(ePlayerState.RUN))
             {
                 if (_inputMap[_horizontal] < -0.1f)
                 {
@@ -381,8 +431,13 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
-                        case ePlayerState.INTERACT:
                             if (_isGrounded)
+                            {
+                                return true;
+                            }
+                            return false;
+                        case ePlayerState.INTERACT:
+                            if(_isInteractable)
                             {
                                 return true;
                             }
@@ -409,8 +464,14 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.INTERACT:
                             if (_isGrounded)
+                            {
+                                return true;
+                            }
+                            return false;
+
+                        case ePlayerState.INTERACT:
+                            if (_isInteractable)
                             {
                                 return true;
                             }
@@ -438,8 +499,14 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.STANDBY:
                         case ePlayerState.STOP:
                         case ePlayerState.WALK:
-                        case ePlayerState.INTERACT:
                             if (_isGrounded)
+                            {
+                                return true;
+                            }
+                            return false;
+
+                        case ePlayerState.INTERACT:
+                            if (_isInteractable)
                             {
                                 return true;
                             }
@@ -466,8 +533,14 @@ public class PlayerController : MonoBehaviour
                         case ePlayerState.RUN:
                         case ePlayerState.STANDBY:
                         case ePlayerState.WALK:
-                        case ePlayerState.INTERACT:
                             if (_isGrounded)
+                            {
+                                return true;
+                            }
+                            return false;
+
+                        case ePlayerState.INTERACT:
+                            if (_isInteractable)
                             {
                                 return true;
                             }
@@ -515,11 +588,13 @@ public class PlayerController : MonoBehaviour
                 break;
             case ePlayerState.INTERACT:
                 {
-                    switch(state)
-                    {
-                        default:
-                            break;
-                    }
+//                     switch(state)
+//                     {
+//                         case ePlayerState.STANDBY:
+//                             return true;
+//                         default:
+//                             return false;
+//                     }
                 }
                 break;
             default:
@@ -535,7 +610,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void AnimateSpine()
     {
-        Debug.Log(_nowState);
+        Debug.Log("" + _playerNumber + _nowState);
 
         switch (_nowState)
         {
@@ -670,5 +745,10 @@ public class PlayerController : MonoBehaviour
     bool IsClimbing()
     {
         return _nowState.Equals(ePlayerState.CLIMBING);
+    }
+
+    bool IsInteracting()
+    {
+        return _nowState.Equals(ePlayerState.INTERACT);
     }
 }
